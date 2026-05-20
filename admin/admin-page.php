@@ -61,6 +61,7 @@ function ntg_turismo_popups_get_default_settings() {
 		'active'           => 0,
 		'campaign_title'   => '',
 		'display_frequency' => 'always',
+		'display_location'  => 'home',
 		'desktop_image_id' => 0,
 		'mobile_image_id'  => 0,
 		'whatsapp_number'  => '',
@@ -109,6 +110,14 @@ function ntg_turismo_popups_sanitize_settings( $input ) {
 	$output['display_frequency'] = in_array( $display_frequency, $allowed_frequencies, true )
 		? $display_frequency
 		: $defaults['display_frequency'];
+
+	$allowed_locations = array( 'home', 'all' );
+	$display_location  = isset( $input['display_location'] )
+		? sanitize_text_field( wp_unslash( $input['display_location'] ) )
+		: $defaults['display_location'];
+	$output['display_location'] = in_array( $display_location, $allowed_locations, true )
+		? $display_location
+		: $defaults['display_location'];
 
 	$output['desktop_image_id'] = isset( $input['desktop_image_id'] )
 		? absint( $input['desktop_image_id'] )
@@ -172,6 +181,20 @@ function ntg_turismo_popups_render_field( $args ) {
 				</option>
 				<option value="session" <?php selected( $settings['display_frequency'], 'session' ); ?>>
 					<?php echo esc_html__( 'Mostrar una vez por sesión', 'ntg-turismo-popups' ); ?>
+				</option>
+			</select>
+			<?php
+			break;
+
+
+		case 'display_location':
+			?>
+			<select name="<?php echo esc_attr( NTG_POPUPS_OPTION_KEY ); ?>[display_location]">
+				<option value="home" <?php selected( $settings['display_location'], 'home' ); ?>>
+					<?php echo esc_html__( 'Solo Home', 'ntg-turismo-popups' ); ?>
+				</option>
+				<option value="all" <?php selected( $settings['display_location'], 'all' ); ?>>
+					<?php echo esc_html__( 'Todas las páginas', 'ntg-turismo-popups' ); ?>
 				</option>
 			</select>
 			<?php
@@ -249,6 +272,7 @@ function ntg_turismo_popups_render_admin_page() {
 					'active'               => esc_html__( 'Activar pop-up', 'ntg-turismo-popups' ),
 					'campaign_title'       => esc_html__( 'Título interno de campaña', 'ntg-turismo-popups' ),
 					'display_frequency'    => esc_html__( 'Frecuencia de visualización', 'ntg-turismo-popups' ),
+					'display_location'     => esc_html__( 'Dónde mostrar el pop-up', 'ntg-turismo-popups' ),
 					'desktop_image_id'     => esc_html__( 'Imagen desktop', 'ntg-turismo-popups' ),
 					'mobile_image_id'      => esc_html__( 'Imagen mobile', 'ntg-turismo-popups' ),
 					'whatsapp_number'      => esc_html__( 'Número de WhatsApp', 'ntg-turismo-popups' ),
