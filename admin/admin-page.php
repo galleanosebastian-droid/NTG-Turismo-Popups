@@ -120,6 +120,36 @@ function ntg_turismo_popups_get_settings() {
 	return wp_parse_args( $saved, ntg_turismo_popups_get_default_settings() );
 }
 
+
+/**
+ * Sanitiza una fecha en formato Y-m-d o devuelve cadena vacía.
+ *
+ * @param mixed $date Valor recibido.
+ * @return string
+ */
+function ntg_turismo_popups_sanitize_date( $date ) {
+	if ( ! is_string( $date ) ) {
+		return '';
+	}
+
+	$date = sanitize_text_field( wp_unslash( $date ) );
+	if ( '' === $date ) {
+		return '';
+	}
+
+	$dt = DateTime::createFromFormat( 'Y-m-d', $date );
+	if ( false === $dt ) {
+		return '';
+	}
+
+	$errors = DateTime::getLastErrors();
+	if ( is_array( $errors ) && ( ! empty( $errors['warning_count'] ) || ! empty( $errors['error_count'] ) ) ) {
+		return '';
+	}
+
+	return $dt->format( 'Y-m-d' );
+}
+
 /**
  * Sanitiza todos los campos de configuración.
  *
@@ -129,13 +159,12 @@ function ntg_turismo_popups_get_settings() {
 function ntg_turismo_popups_sanitize_settings( $input ) {
 	$defaults = ntg_turismo_popups_get_default_settings();
 	$input    = is_array( $input ) ? $input : array();
-
-	$output = array();
+	$output   = array();
 
 	$output['active'] = isset( $input['active'] ) ? 1 : 0;
 
-	$output['campaign_title'] = isset( $input['campaign_title'] )
-		? sanitize_text_field( wp_unslash( $input['campaign_title'] ) )
+	$output['campaign_title'] = isset( $input['campaign_title'] ) && is_scalar( $input['campaign_title'] )
+		? sanitize_text_field( wp_unslash( (string) $input['campaign_title'] ) )
 		: $defaults['campaign_title'];
 
 	$output['desktop_image_id'] = isset( $input['desktop_image_id'] )
@@ -146,57 +175,47 @@ function ntg_turismo_popups_sanitize_settings( $input ) {
 		? absint( $input['mobile_image_id'] )
 		: $defaults['mobile_image_id'];
 
-	$output['whatsapp_number'] = isset( $input['whatsapp_number'] )
-		? sanitize_text_field( wp_unslash( $input['whatsapp_number'] ) )
+	$output['whatsapp_number'] = isset( $input['whatsapp_number'] ) && is_scalar( $input['whatsapp_number'] )
+		? sanitize_text_field( wp_unslash( (string) $input['whatsapp_number'] ) )
 		: $defaults['whatsapp_number'];
 
-	$output['whatsapp_message'] = isset( $input['whatsapp_message'] )
-		? sanitize_textarea_field( wp_unslash( $input['whatsapp_message'] ) )
+	$output['whatsapp_message'] = isset( $input['whatsapp_message'] ) && is_scalar( $input['whatsapp_message'] )
+		? sanitize_textarea_field( wp_unslash( (string) $input['whatsapp_message'] ) )
 		: $defaults['whatsapp_message'];
 
 	$show_in_allowed = array( 'home', 'all_pages', 'specific_pages', 'specific_posts', 'specific_pages_posts' );
-	$show_in_value   = isset( $input['ntg_popups_show_in'] )
-		? sanitize_key( wp_unslash( $input['ntg_popups_show_in'] ) )
-		: $defaults['ntg_popups_show_in'];
+	$show_in_raw     = isset( $input['ntg_popups_show_in'] ) && is_scalar( $input['ntg_popups_show_in'] ) ? (string) $input['ntg_popups_show_in'] : '';
+	$show_in_value   = sanitize_key( wp_unslash( $show_in_raw ) );
 	$output['ntg_popups_show_in'] = in_array( $show_in_value, $show_in_allowed, true ) ? $show_in_value : $defaults['ntg_popups_show_in'];
 
 	$output['ntg_popups_page_ids'] = array();
 	if ( isset( $input['ntg_popups_page_ids'] ) && is_array( $input['ntg_popups_page_ids'] ) ) {
-		$output['ntg_popups_page_ids'] = array_values(
-			array_filter(
-				array_map( 'absint', wp_unslash( $input['ntg_popups_page_ids'] ) )
-			)
-		);
+		$output['ntg_popups_page_ids'] = array_values( array_filter( array_map( 'absint', wp_unslash( $input['ntg_popups_page_ids'] ) ) ) );
 	}
 
 	$output['ntg_popups_post_ids'] = array();
 	if ( isset( $input['ntg_popups_post_ids'] ) && is_array( $input['ntg_popups_post_ids'] ) ) {
-		$output['ntg_popups_post_ids'] = array_values(
-			array_filter(
-				array_map( 'absint', wp_unslash( $input['ntg_popups_post_ids'] ) )
-			)
-		);
+		$output['ntg_popups_post_ids'] = array_values( array_filter( array_map( 'absint', wp_unslash( $input['ntg_popups_post_ids'] ) ) ) );
 	}
 
 	$frequency_allowed = array( 'always', 'session_once', 'days_once' );
-	$frequency_value   = isset( $input['ntg_popups_frequency'] )
-		? sanitize_key( wp_unslash( $input['ntg_popups_frequency'] ) )
-		: $defaults['ntg_popups_frequency'];
+	$frequency_raw     = isset( $input['ntg_popups_frequency'] ) && is_scalar( $input['ntg_popups_frequency'] ) ? (string) $input['ntg_popups_frequency'] : '';
+	$frequency_value   = sanitize_key( wp_unslash( $frequency_raw ) );
 	$output['ntg_popups_frequency'] = in_array( $frequency_value, $frequency_allowed, true ) ? $frequency_value : $defaults['ntg_popups_frequency'];
 
-	$output['ntg_popups_frequency_days'] = isset( $input['ntg_popups_frequency_days'] )
+	$output['ntg_popups_frequency_days'] = isset( $input['ntg_popups_frequency_days'] ) && is_scalar( $input['ntg_popups_frequency_days'] )
 		? max( 0, absint( $input['ntg_popups_frequency_days'] ) )
 		: $defaults['ntg_popups_frequency_days'];
 
 	$output['ntg_popups_campaign_start_date'] = isset( $input['ntg_popups_campaign_start_date'] )
-		? sanitize_text_field( wp_unslash( $input['ntg_popups_campaign_start_date'] ) )
+		? ntg_turismo_popups_sanitize_date( $input['ntg_popups_campaign_start_date'] )
 		: $defaults['ntg_popups_campaign_start_date'];
 
 	$output['ntg_popups_campaign_end_date'] = isset( $input['ntg_popups_campaign_end_date'] )
-		? sanitize_text_field( wp_unslash( $input['ntg_popups_campaign_end_date'] ) )
+		? ntg_turismo_popups_sanitize_date( $input['ntg_popups_campaign_end_date'] )
 		: $defaults['ntg_popups_campaign_end_date'];
 
-	$output['ntg_popups_show_close_button'] = isset( $input['ntg_popups_show_close_button'] ) ? 1 : 0;
+	$output['ntg_popups_show_close_button']       = isset( $input['ntg_popups_show_close_button'] ) ? 1 : 0;
 	$output['ntg_popups_image_click_to_whatsapp'] = isset( $input['ntg_popups_image_click_to_whatsapp'] ) ? 1 : 0;
 
 	return $output;
