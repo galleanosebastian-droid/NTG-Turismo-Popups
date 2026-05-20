@@ -4,10 +4,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/**
- * Slug del grupo/opciones.
- */
-define( 'NTG_POPUPS_SETTINGS_GROUP', 'ntg_popups_settings_group' );
 define( 'NTG_POPUPS_OPTION_KEY', 'ntg_popups_settings' );
 define( 'NTG_POPUPS_SETTINGS_PAGE', 'ntg-turismo-popups' );
 
@@ -28,58 +24,13 @@ function ntg_turismo_popups_register_admin_menu() {
 add_action( 'admin_menu', 'ntg_turismo_popups_register_admin_menu' );
 
 /**
- * Registra opción, sección y campos usando Settings API.
- */
-function ntg_turismo_popups_register_settings() {
-	register_setting(
-		NTG_POPUPS_SETTINGS_GROUP,
-		NTG_POPUPS_OPTION_KEY,
-		array(
-			'type'              => 'array',
-			'sanitize_callback' => 'ntg_turismo_popups_sanitize_settings',
-			'default'           => ntg_turismo_popups_get_default_settings(),
-		)
-	);
-
-	add_settings_section(
-		'ntg_popups_main_section',
-		esc_html__( 'Configuración de campaña', 'ntg-turismo-popups' ),
-		'ntg_turismo_popups_render_section_description',
-		NTG_POPUPS_SETTINGS_PAGE
-	);
-
-	$fields = array(
-		'active'           => esc_html__( 'Activar pop-up', 'ntg-turismo-popups' ),
-		'campaign_title'   => esc_html__( 'Título interno de campaña', 'ntg-turismo-popups' ),
-		'desktop_image_id' => esc_html__( 'Imagen desktop', 'ntg-turismo-popups' ),
-		'mobile_image_id'  => esc_html__( 'Imagen mobile', 'ntg-turismo-popups' ),
-		'whatsapp_number'  => esc_html__( 'Número de WhatsApp', 'ntg-turismo-popups' ),
-		'whatsapp_message' => esc_html__( 'Mensaje prearmado de WhatsApp', 'ntg-turismo-popups' ),
-	);
-
-	foreach ( $fields as $field_key => $field_label ) {
-		add_settings_field(
-			'ntg_popups_' . $field_key,
-			$field_label,
-			'ntg_turismo_popups_render_field',
-			NTG_POPUPS_SETTINGS_PAGE,
-			'ntg_popups_main_section',
-			array(
-				'field_key' => $field_key,
-			)
-		);
-	}
-}
-add_action( 'admin_init', 'ntg_turismo_popups_register_settings' );
-
-/**
  * Valores por defecto de configuración.
  *
  * @return array<string, mixed>
  */
 function ntg_turismo_popups_get_default_settings() {
 	return array(
-		'active'           => 0,
+		'enabled'          => 0,
 		'campaign_title'   => '',
 		'desktop_image_id' => 0,
 		'mobile_image_id'  => 0,
@@ -99,6 +50,10 @@ function ntg_turismo_popups_get_settings() {
 		$saved = array();
 	}
 
+	if ( isset( $saved['active'] ) && ! isset( $saved['enabled'] ) ) {
+		$saved['enabled'] = $saved['active'];
+	}
+
 	return wp_parse_args( $saved, ntg_turismo_popups_get_default_settings() );
 }
 
@@ -114,7 +69,7 @@ function ntg_turismo_popups_sanitize_settings( $input ) {
 
 	$output = array();
 
-	$output['active'] = isset( $input['active'] ) ? 1 : 0;
+	$output['enabled'] = isset( $input['enabled'] ) ? 1 : 0;
 
 	$output['campaign_title'] = isset( $input['campaign_title'] )
 		? sanitize_text_field( wp_unslash( $input['campaign_title'] ) )
@@ -140,11 +95,32 @@ function ntg_turismo_popups_sanitize_settings( $input ) {
 }
 
 /**
- * Texto descriptivo de la sección.
+ * Guarda la configuración del plugin vía admin-post.php.
  */
-function ntg_turismo_popups_render_section_description() {
-	echo '<p>' . esc_html__( 'Configurá los datos de la campaña promocional desde este panel.', 'ntg-turismo-popups' ) . '</p>';
+function ntg_popups_save_settings() {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( esc_html__( 'No tenés permisos para realizar esta acción.', 'ntg-turismo-popups' ) );
+	}
+
+	check_admin_referer( 'ntg_popups_save_settings_nonce', 'ntg_popups_nonce' );
+
+	$raw_settings = isset( $_POST['ntg_popups_settings'] ) ? wp_unslash( $_POST['ntg_popups_settings'] ) : array();
+	$settings     = ntg_turismo_popups_sanitize_settings( $raw_settings );
+
+	update_option( NTG_POPUPS_OPTION_KEY, $settings );
+
+	$redirect_url = add_query_arg(
+		array(
+			'page'             => NTG_POPUPS_SETTINGS_PAGE,
+			'settings-updated' => 'true',
+		),
+		admin_url( 'admin.php' )
+	);
+
+	wp_safe_redirect( $redirect_url );
+	exit;
 }
+add_action( 'admin_post_ntg_popups_save_settings', 'ntg_popups_save_settings' );
 
 /**
  * Renderiza cada campo de configuración.
@@ -156,10 +132,10 @@ function ntg_turismo_popups_render_field( $args ) {
 	$field_key = isset( $args['field_key'] ) ? $args['field_key'] : '';
 
 	switch ( $field_key ) {
-		case 'active':
+		case 'enabled':
 			?>
 			<label>
-				<input type="checkbox" name="<?php echo esc_attr( NTG_POPUPS_OPTION_KEY ); ?>[active]" value="1" <?php checked( ! empty( $settings['active'] ) ); ?> />
+				<input type="checkbox" name="<?php echo esc_attr( NTG_POPUPS_OPTION_KEY ); ?>[enabled]" value="1" <?php checked( ! empty( $settings['enabled'] ) ); ?> />
 				<?php echo esc_html__( 'Habilitar pop-up promocional', 'ntg-turismo-popups' ); ?>
 			</label>
 			<?php
@@ -211,12 +187,49 @@ function ntg_turismo_popups_render_admin_page() {
 	?>
 	<div class="wrap ntg-turismo-popups-admin">
 		<h1><?php echo esc_html__( 'NTG Turismo Popups', 'ntg-turismo-popups' ); ?></h1>
-		<form method="post" action="options.php">
-			<?php
-			settings_fields( NTG_POPUPS_SETTINGS_GROUP );
-			do_settings_sections( NTG_POPUPS_SETTINGS_PAGE );
-			submit_button( esc_html__( 'Guardar cambios', 'ntg-turismo-popups' ) );
-			?>
+
+		<?php if ( isset( $_GET['settings-updated'] ) && 'true' === sanitize_text_field( wp_unslash( $_GET['settings-updated'] ) ) ) : ?>
+			<div class="notice notice-success is-dismissible">
+				<p><?php echo esc_html__( 'Cambios guardados correctamente.', 'ntg-turismo-popups' ); ?></p>
+			</div>
+		<?php endif; ?>
+
+		<p><?php echo esc_html__( 'Configurá los datos de la campaña promocional desde este panel.', 'ntg-turismo-popups' ); ?></p>
+
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<input type="hidden" name="action" value="ntg_popups_save_settings" />
+			<?php wp_nonce_field( 'ntg_popups_save_settings_nonce', 'ntg_popups_nonce' ); ?>
+
+			<table class="form-table" role="presentation">
+				<tbody>
+					<tr>
+						<th scope="row"><?php echo esc_html__( 'Activar pop-up', 'ntg-turismo-popups' ); ?></th>
+						<td><?php ntg_turismo_popups_render_field( array( 'field_key' => 'enabled' ) ); ?></td>
+					</tr>
+					<tr>
+						<th scope="row"><?php echo esc_html__( 'Título interno de campaña', 'ntg-turismo-popups' ); ?></th>
+						<td><?php ntg_turismo_popups_render_field( array( 'field_key' => 'campaign_title' ) ); ?></td>
+					</tr>
+					<tr>
+						<th scope="row"><?php echo esc_html__( 'Imagen desktop', 'ntg-turismo-popups' ); ?></th>
+						<td><?php ntg_turismo_popups_render_field( array( 'field_key' => 'desktop_image_id' ) ); ?></td>
+					</tr>
+					<tr>
+						<th scope="row"><?php echo esc_html__( 'Imagen mobile', 'ntg-turismo-popups' ); ?></th>
+						<td><?php ntg_turismo_popups_render_field( array( 'field_key' => 'mobile_image_id' ) ); ?></td>
+					</tr>
+					<tr>
+						<th scope="row"><?php echo esc_html__( 'Número de WhatsApp', 'ntg-turismo-popups' ); ?></th>
+						<td><?php ntg_turismo_popups_render_field( array( 'field_key' => 'whatsapp_number' ) ); ?></td>
+					</tr>
+					<tr>
+						<th scope="row"><?php echo esc_html__( 'Mensaje prearmado de WhatsApp', 'ntg-turismo-popups' ); ?></th>
+						<td><?php ntg_turismo_popups_render_field( array( 'field_key' => 'whatsapp_message' ) ); ?></td>
+					</tr>
+				</tbody>
+			</table>
+
+			<?php submit_button( esc_html__( 'Guardar cambios', 'ntg-turismo-popups' ) ); ?>
 		</form>
 	</div>
 	<?php
