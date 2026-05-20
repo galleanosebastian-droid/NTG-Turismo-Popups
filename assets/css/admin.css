@@ -1,4 +1,17 @@
-.ntg-turismo-popups-admin p {
-	font-size: 15px;
-	line-height: 1.5;
+.ntg-turismo-popups-admin .form-table th {
+	width: 220px;
+}
+
+.ntg-popups-media-field {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	max-width: 360px;
+}
+
+.ntg-popups-image-preview {
+	max-width: 100%;
+	height: auto;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
 }

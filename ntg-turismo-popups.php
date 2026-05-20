@@ -32,12 +32,23 @@ function ntg_turismo_popups_admin_assets( $hook ) {
 		NTG_TURISMO_POPUPS_VERSION
 	);
 
+	wp_enqueue_media();
+
 	wp_enqueue_script(
 		'ntg-turismo-popups-admin',
 		NTG_TURISMO_POPUPS_URL . 'assets/js/admin.js',
-		array(),
+		array( 'jquery' ),
 		NTG_TURISMO_POPUPS_VERSION,
 		true
+	);
+
+	wp_localize_script(
+		'ntg-turismo-popups-admin',
+		'ntgPopupsAdmin',
+		array(
+			'title'  => esc_html__( 'Seleccionar imagen', 'ntg-turismo-popups' ),
+			'button' => esc_html__( 'Usar esta imagen', 'ntg-turismo-popups' ),
+		)
 	);
 }
 add_action( 'admin_enqueue_scripts', 'ntg_turismo_popups_admin_assets' );
