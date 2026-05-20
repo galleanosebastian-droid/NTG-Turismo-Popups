@@ -64,6 +64,8 @@ function ntg_turismo_popups_get_default_settings() {
 		'mobile_image_id'  => 0,
 		'whatsapp_number'  => '',
 		'whatsapp_message' => '',
+		'campaign_start_date' => '',
+		'campaign_end_date' => '',
 		'show_close_button'   => 0,
 		'image_click_whatsapp' => 0,
 	);
@@ -81,6 +83,39 @@ function ntg_turismo_popups_get_settings() {
 	}
 
 	return wp_parse_args( $saved, ntg_turismo_popups_get_default_settings() );
+}
+
+
+/**
+ * Sanitiza una fecha en formato YYYY-MM-DD.
+ *
+ * @param mixed $value Valor recibido.
+ * @return string
+ */
+function ntg_turismo_popups_sanitize_date( $value ) {
+	if ( ! is_string( $value ) ) {
+		return '';
+	}
+
+	$date = sanitize_text_field( wp_unslash( $value ) );
+	if ( '' === $date ) {
+		return '';
+	}
+
+	if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
+		return '';
+	}
+
+	$parts = explode( '-', $date );
+	$year  = isset( $parts[0] ) ? (int) $parts[0] : 0;
+	$month = isset( $parts[1] ) ? (int) $parts[1] : 0;
+	$day   = isset( $parts[2] ) ? (int) $parts[2] : 0;
+
+	if ( ! checkdate( $month, $day, $year ) ) {
+		return '';
+	}
+
+	return sprintf( '%04d-%02d-%02d', $year, $month, $day );
 }
 
 /**
@@ -116,6 +151,14 @@ function ntg_turismo_popups_sanitize_settings( $input ) {
 	$output['whatsapp_message'] = isset( $input['whatsapp_message'] )
 		? sanitize_textarea_field( wp_unslash( $input['whatsapp_message'] ) )
 		: $defaults['whatsapp_message'];
+
+	$output['campaign_start_date'] = isset( $input['campaign_start_date'] )
+		? ntg_turismo_popups_sanitize_date( $input['campaign_start_date'] )
+		: $defaults['campaign_start_date'];
+
+	$output['campaign_end_date'] = isset( $input['campaign_end_date'] )
+		? ntg_turismo_popups_sanitize_date( $input['campaign_end_date'] )
+		: $defaults['campaign_end_date'];
 
 	$output['show_close_button'] = isset( $input['show_close_button'] ) ? 1 : 0;
 	$output['image_click_whatsapp'] = isset( $input['image_click_whatsapp'] ) ? 1 : 0;
@@ -185,6 +228,12 @@ function ntg_turismo_popups_render_field( $args ) {
 			<textarea class="large-text" rows="4" name="<?php echo esc_attr( NTG_POPUPS_OPTION_KEY ); ?>[whatsapp_message]"><?php echo esc_textarea( $settings['whatsapp_message'] ); ?></textarea>
 			<?php
 			break;
+		case 'campaign_start_date':
+		case 'campaign_end_date':
+			?>
+			<input type="date" name="<?php echo esc_attr( NTG_POPUPS_OPTION_KEY ); ?>[<?php echo esc_attr( $field_key ); ?>]" value="<?php echo esc_attr( $settings[ $field_key ] ); ?>" />
+			<?php
+			break;
 		case 'show_close_button':
 			?>
 			<label>
@@ -230,6 +279,8 @@ function ntg_turismo_popups_render_admin_page() {
 					'mobile_image_id'      => esc_html__( 'Imagen mobile', 'ntg-turismo-popups' ),
 					'whatsapp_number'      => esc_html__( 'Número de WhatsApp', 'ntg-turismo-popups' ),
 					'whatsapp_message'     => esc_html__( 'Mensaje prearmado de WhatsApp', 'ntg-turismo-popups' ),
+					'campaign_start_date'  => esc_html__( 'Fecha de inicio de campaña', 'ntg-turismo-popups' ),
+					'campaign_end_date'    => esc_html__( 'Fecha de fin de campaña', 'ntg-turismo-popups' ),
 					'show_close_button'    => esc_html__( 'Mostrar botón de cerrar', 'ntg-turismo-popups' ),
 					'image_click_whatsapp' => esc_html__( 'Abrir WhatsApp al hacer clic en toda la imagen', 'ntg-turismo-popups' ),
 				);
