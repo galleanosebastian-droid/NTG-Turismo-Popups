@@ -59,8 +59,10 @@ add_action( 'admin_post_ntg_popups_save_settings', 'ntg_turismo_popups_handle_sa
 function ntg_turismo_popups_get_default_settings() {
 	return array(
 		'active'           => 0,
-		'campaign_title'   => '',
-		'display_frequency' => 'always',
+		'campaign_title'      => '',
+		'campaign_start_date' => '',
+		'campaign_end_date'   => '',
+		'display_frequency'   => 'always',
 		'display_location'  => 'home',
 		'desktop_image_id' => 0,
 		'mobile_image_id'  => 0,
@@ -85,6 +87,29 @@ function ntg_turismo_popups_get_settings() {
 	return wp_parse_args( $saved, ntg_turismo_popups_get_default_settings() );
 }
 
+
+/**
+ * Sanitiza fechas de campaña en formato YYYY-MM-DD.
+ *
+ * @param mixed $value Valor recibido.
+ * @return string
+ */
+function ntg_turismo_popups_sanitize_campaign_date( $value ) {
+	$date = sanitize_text_field( wp_unslash( (string) $value ) );
+	if ( '' === $date ) {
+		return '';
+	}
+
+	$parsed = DateTimeImmutable::createFromFormat( 'Y-m-d', $date );
+	$errors = DateTimeImmutable::getLastErrors();
+
+	if ( false === $parsed || ! is_array( $errors ) || 0 !== $errors['warning_count'] || 0 !== $errors['error_count'] || $parsed->format( 'Y-m-d' ) !== $date ) {
+		return '';
+	}
+
+	return $date;
+}
+
 /**
  * Sanitiza todos los campos de configuración.
  *
@@ -102,6 +127,14 @@ function ntg_turismo_popups_sanitize_settings( $input ) {
 	$output['campaign_title'] = isset( $input['campaign_title'] )
 		? sanitize_text_field( wp_unslash( $input['campaign_title'] ) )
 		: $defaults['campaign_title'];
+
+	$output['campaign_start_date'] = isset( $input['campaign_start_date'] )
+		? ntg_turismo_popups_sanitize_campaign_date( $input['campaign_start_date'] )
+		: $defaults['campaign_start_date'];
+
+	$output['campaign_end_date'] = isset( $input['campaign_end_date'] )
+		? ntg_turismo_popups_sanitize_campaign_date( $input['campaign_end_date'] )
+		: $defaults['campaign_end_date'];
 
 	$allowed_frequencies = array( 'always', 'session' );
 	$display_frequency   = isset( $input['display_frequency'] )
@@ -170,6 +203,18 @@ function ntg_turismo_popups_render_field( $args ) {
 		case 'campaign_title':
 			?>
 			<input type="text" class="regular-text" name="<?php echo esc_attr( NTG_POPUPS_OPTION_KEY ); ?>[campaign_title]" value="<?php echo esc_attr( $settings['campaign_title'] ); ?>" />
+			<?php
+			break;
+
+		case 'campaign_start_date':
+			?>
+			<input type="date" name="<?php echo esc_attr( NTG_POPUPS_OPTION_KEY ); ?>[campaign_start_date]" value="<?php echo esc_attr( $settings['campaign_start_date'] ); ?>" pattern="\d{4}-\d{2}-\d{2}" />
+			<?php
+			break;
+
+		case 'campaign_end_date':
+			?>
+			<input type="date" name="<?php echo esc_attr( NTG_POPUPS_OPTION_KEY ); ?>[campaign_end_date]" value="<?php echo esc_attr( $settings['campaign_end_date'] ); ?>" pattern="\d{4}-\d{2}-\d{2}" />
 			<?php
 			break;
 
@@ -271,6 +316,8 @@ function ntg_turismo_popups_render_admin_page() {
 				$fields = array(
 					'active'               => esc_html__( 'Activar pop-up', 'ntg-turismo-popups' ),
 					'campaign_title'       => esc_html__( 'Título interno de campaña', 'ntg-turismo-popups' ),
+					'campaign_start_date'  => esc_html__( 'Fecha de inicio de campaña', 'ntg-turismo-popups' ),
+					'campaign_end_date'    => esc_html__( 'Fecha de fin de campaña', 'ntg-turismo-popups' ),
 					'display_frequency'    => esc_html__( 'Frecuencia de visualización', 'ntg-turismo-popups' ),
 					'display_location'     => esc_html__( 'Dónde mostrar el pop-up', 'ntg-turismo-popups' ),
 					'desktop_image_id'     => esc_html__( 'Imagen desktop', 'ntg-turismo-popups' ),
